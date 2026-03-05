@@ -1,28 +1,56 @@
-import math
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 
-def calculate_niche_score(niche):
+def connect(creds_file, sheet_name):
 
-    total_sales = niche["total_sales"]
-    sellers = niche["sellers"]
-    monopoly_index = niche["monopoly_index"]
-    avg_price = niche["avg_price"]
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
 
-    demand_score = math.log(total_sales + 1)
-
-    competition_score = 1 / sellers if sellers else 0
-
-    monopoly_score = 1 - monopoly_index
-
-    price_score = 1 if 30 <= avg_price <= 200 else 0
-
-    final_score = (
-        demand_score * 0.35 +
-        competition_score * 0.30 +
-        monopoly_score * 0.25 +
-        price_score * 0.10
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        creds_file,
+        scope
     )
 
-    niche["niche_score"] = round(final_score, 3)
+    client = gspread.authorize(creds)
 
-    return niche
+    return client.open(sheet_name).sheet1
+
+
+def append_raw_products(sheet, products):
+
+    rows = []
+
+    for p in products:
+
+        rows.append([
+            p["phrase"],
+            p["title"],
+            p["price"],
+            p["sales"],
+            p["seller"],
+            p["images"],
+            p["url"]
+        ])
+
+    sheet.append_rows(rows)
+
+
+def append_niche_ranking(sheet, niches):
+
+    rows = []
+
+    for n in niches:
+
+        rows.append([
+            n["phrase"],
+            n["total_sales"],
+            n["sellers"],
+            n["avg_price"],
+            n["monopoly_index"],
+            n["niche_score"]
+        ])
+
+    sheet.append_rows(rows)
