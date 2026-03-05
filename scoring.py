@@ -1,49 +1,28 @@
-"""
-Prosty scoring niszy produktowej.
-"""
+import math
 
 
-def score_product(product, all_products):
-    """
-    Liczy scoring dla pojedynczej oferty.
-    """
+def calculate_niche_score(niche):
 
-    score = 0
+    total_sales = niche["total_sales"]
+    sellers = niche["sellers"]
+    monopoly_index = niche["monopoly_index"]
+    avg_price = niche["avg_price"]
 
-    price = product["price"]
-    sales = product["sales"]
+    demand_score = math.log(total_sales + 1)
 
-    # Cena 30-200 zł
-    if 30 <= price <= 200:
-        score += 20
+    competition_score = 1 / sellers if sellers else 0
 
-    # Sprzedaż
-    if 30 <= sales <= 200:
-        score += 20
+    monopoly_score = 1 - monopoly_index
 
-    # Liczba sprzedawców
-    sellers = set(p["seller"] for p in all_products)
+    price_score = 1 if 30 <= avg_price <= 200 else 0
 
-    if len(sellers) < 15:
-        score += 20
+    final_score = (
+        demand_score * 0.35 +
+        competition_score * 0.30 +
+        monopoly_score * 0.25 +
+        price_score * 0.10
+    )
 
-    # Dominujący sprzedawca
-    seller_sales = {}
+    niche["niche_score"] = round(final_score, 3)
 
-    for p in all_products:
-        seller_sales[p["seller"]] = seller_sales.get(p["seller"], 0) + p["sales"]
-
-    if seller_sales:
-        max_sales = max(seller_sales.values())
-        total_sales = sum(seller_sales.values())
-
-        if max_sales / total_sales < 0.5:
-            score += 20
-
-    # Słabe oferty (mało zdjęć)
-    weak_offers = [p for p in all_products if p["images"] < 3]
-
-    if len(weak_offers) > len(all_products) * 0.3:
-        score += 20
-
-    return score
+    return niche
