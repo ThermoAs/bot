@@ -1,31 +1,54 @@
-"""
-Główny plik aplikacji.
-"""
+from playwright.sync_api import sync_playwright
 
 from scraper import scrape_all_phrases
-from scoring import score_product
-from sheets import connect, append_rows
-from config import SEARCH_PHRASES, GOOGLE_SHEETS_NAME, GOOGLE_CREDS_FILE
+from discovery import discover_products
+from aggregator import aggregate_by_phrase
+from scoring import calculate_niche_score
+from sheets import connect, append_raw_products, append_niche_ranking
+
+from config import SEARCH_PHRASES, GOOGLE_CREDS_FILE, GOOGLE_SHEETS_NAME
 
 
 def main():
 
-    print("Scraping Allegro...")
+    with sync_playwright() as p:
 
-    products = scrape_all_phrases(SEARCH_PHRASES)
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
 
-    print("Liczenie scoringu...")
+        print("Scraping ofert...")
 
-    for p in products:
-        p["score"] = score_product(p, products)
+        products = scrape_all_phrases(page, SEARCH_PHRASES)
 
-    print("Łączenie z Google Sheets...")
+        urls = [p["url"] for p in products if p["url"]]
 
-    sheet = connect(GOOGLE_CREDS_FILE, GOOGLE_SHEETS_NAME)
+        print("Product discovery...")
 
-    append_rows(sheet, products)
+        discovered = discover_products(page, urls)
 
-    print("Gotowe.")
+        print("Agregacja nisz...")
+
+        niches = aggregate_by_phrase(products)
+
+        scored = []
+
+        for n in niches:
+            scored.append(calculate_niche_score(n))
+
+        scored.sort(key=lambda x: x["niche_score"], reverse=True)
+
+        top20 = scored[:20]
+
+        print("Zapis do Google Sheets")
+
+        sheet = connect(GOOGLE_CREDS_FILE, GOOGLE_SHEETS_NAME)
+
+        append_raw_products(sheet, products)
+        append_niche_ranking(sheet, top20)
+
+        browser.close()
+
+    print("Gotowe")
 
 
 if __name__ == "__main__":
