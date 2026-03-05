@@ -1,15 +1,8 @@
-"""
-Obsługa Google Sheets.
-"""
-
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 
 def connect(creds_file, sheet_name):
-    """
-    Łączy z Google Sheets.
-    """
 
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -23,29 +16,41 @@ def connect(creds_file, sheet_name):
 
     client = gspread.authorize(creds)
 
-    sheet = client.open(sheet_name).sheet1
-
-    return sheet
+    return client.open(sheet_name).sheet1
 
 
-def append_rows(sheet, rows):
-    """
-    Dodaje dane do arkusza.
-    """
+def append_raw_products(sheet, products):
 
-    values = []
+    rows = []
 
-    for r in rows:
-        values.append([
-            r["phrase"],
-            r["title"],
-            r["price"],
-            r["sales"],
-            r["seller"],
-            r["opinions"],
-            r["smart"],
-            r["images"],
-            r["score"]
+    for p in products:
+
+        rows.append([
+            p["phrase"],
+            p["title"],
+            p["price"],
+            p["sales"],
+            p["seller"],
+            p["images"],
+            p["url"]
         ])
 
-    sheet.append_rows(values)
+    sheet.append_rows(rows)
+
+
+def append_niche_ranking(sheet, niches):
+
+    rows = []
+
+    for n in niches:
+
+        rows.append([
+            n["phrase"],
+            n["total_sales"],
+            n["sellers"],
+            n["avg_price"],
+            n["monopoly_index"],
+            n["niche_score"]
+        ])
+
+    sheet.append_rows(rows)
