@@ -1,19 +1,12 @@
-"""
-Scraper Allegro oparty o Playwright.
-
-Pobiera dane z pierwszej strony wyników wyszukiwania.
-"""
-
-from playwright.sync_api import sync_playwright
 import re
-
+from config import MAX_OFFERS_PER_PHRASE
 
 BASE_URL = "https://allegro.pl/listing?string="
 
 
 def extract_number(text):
     """
-    Wyciąga liczbę z tekstu.
+    Wyciąga pierwszą liczbę z tekstu.
     """
     if not text:
         return 0
@@ -22,78 +15,71 @@ def extract_number(text):
     return int(numbers[0]) if numbers else 0
 
 
-def scrape_phrase(phrase):
+def scrape_phrase(page, phrase):
     """
-    Scrape pierwszej strony wyników dla danej frazy.
+    Scrape pierwszej strony wyników Allegro.
     """
 
     results = []
 
-    with sync_playwright() as p:
+    search_url = BASE_URL + phrase.replace(" ", "+")
 
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+    page.goto(search_url)
+    page.wait_for_timeout(3000)
 
-        search_url = BASE_URL + phrase.replace(" ", "+")
+    offers = page.query_selector_all("article")
 
-        page.goto(search_url)
-        page.wait_for_timeout(3000)
+    for offer in offers[:MAX_OFFERS_PER_PHRASE]:
 
-        offers = page.query_selector_all('[data-role="offer"]')
+        try:
 
-        for offer in offers:
+            title_el = offer.query_selector("h2")
+            title = title_el.inner_text() if title_el else ""
 
-            try:
+            link_el = offer.query_selector("a")
+            link = link_el.get_attribute("href") if link_el else ""
 
-                title_el = offer.query_selector("h2")
-                title = title_el.inner_text() if title_el else ""
+            price_el = offer.query_selector('[data-testid="price"]')
+            price = extract_number(price_el.inner_text()) if price_el else 0
 
-                price_el = offer.query_selector('[data-testid="price"]')
-                price_text = price_el.inner_text() if price_el else ""
+            sales_el = offer.query_selector("span:has-text('kupionych')")
+            sales = extract_number(sales_el.inner_text()) if sales_el else 0
 
-                price = extract_number(price_text)
+            seller_el = offer.query_selector("a[data-testid='seller-name']")
+            seller = seller_el.inner_text() if seller_el else ""
 
-                sales_el = offer.query_selector("span:has-text('kupionych')")
-                sales = extract_number(sales_el.inner_text()) if sales_el else 0
+            smart = bool(offer.query_selector("img[alt='Smart!']"))
 
-                seller_el = offer.query_selector("a[data-testid='seller-name']")
-                seller = seller_el.inner_text() if seller_el else ""
+            images = len(offer.query_selector_all("img"))
 
-                opinion_el = offer.query_selector("span:has-text('%')")
-                opinions = extract_number(opinion_el.inner_text()) if opinion_el else 0
+            results.append({
+                "phrase": phrase,
+                "title": title,
+                "url": link,
+                "price": price,
+                "sales": sales,
+                "seller": seller,
+                "smart": smart,
+                "images": images
+            })
 
-                smart = bool(offer.query_selector("img[alt='Smart!']"))
-
-                images = len(offer.query_selector_all("img"))
-
-                results.append({
-                    "phrase": phrase,
-                    "title": title,
-                    "price": price,
-                    "sales": sales,
-                    "seller": seller,
-                    "opinions": opinions,
-                    "smart": smart,
-                    "images": images
-                })
-
-            except Exception:
-                continue
-
-        browser.close()
+        except Exception:
+            continue
 
     return results
 
 
-def scrape_all_phrases(phrases):
-    """
-    Scrape wielu fraz.
-    """
+def scrape_all_phrases(page, phrases):
 
     all_results = []
 
     for phrase in phrases:
-        data = scrape_phrase(phrase)
-        all_results.extend(data)
+
+        try:
+            data = scrape_phrase(page, phrase)
+            all_results.extend(data)
+
+        except Exception:
+            continue
 
     return all_results
