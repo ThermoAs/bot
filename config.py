@@ -1,20 +1,19 @@
 """
-Plik konfiguracyjny projektu.
-
-Zawiera:
-- listę fraz do researchu
-- konfigurację Google Sheets
+Konfiguracja bota Allegro.
 """
 
-# Frazy do wyszukiwania na Allegro
 SEARCH_PHRASES = [
     "mata do jogi",
     "organizer do szuflady",
-    "lampka nocna led",
+    "lampka nocna led"
 ]
 
-# Google Sheets
 GOOGLE_SHEETS_NAME = "allegro_product_research"
-
-# Ścieżka do pliku credentials Google API
 GOOGLE_CREDS_FILE = "credentials.json"
+
+# limity
+MAX_OFFERS_PER_PHRASE = 30
+MAX_DISCOVERED_PRODUCTS = 50
+
+# cache odwiedzonych produktów
+VISITED_PRODUCTS = set()
